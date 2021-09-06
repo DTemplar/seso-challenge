@@ -5,16 +5,17 @@ const sortLogSources = require("./sort-util").sortLogSources;
 
 module.exports = (logSources, printer) => {
   return new Promise((resolve, reject) => {
-    const sortedLogSources = logSources.map(logSource => {
-      const log = logSource.pop();
-      return { log, logSource };
-    });
-  
-    sortedLogSources.sort((a, b) => {
-      return a.log.date.getTime() - b.log.date.getTime();
-    });
+    
 
     const processLogs = async () => {
+      const sortedLogSources = await Promise.all(logSources.map(async (logSource) => {
+        const log = await logSource.popAsync();
+        return { log, logSource };
+      }));
+    
+      sortedLogSources.sort((a, b) => {
+        return a.log.date.getTime() - b.log.date.getTime();
+      });
       while( sortedLogSources.length > 0 && sortedLogSources[0].log){
         const oldest = sortedLogSources[0];
         printer.print(oldest.log);
