@@ -1,32 +1,35 @@
 "use strict";
 
 // Print all entries, across all of the *async* sources, in chronological order.
-const sortLogSources = require("./sort-util").sortLogSources;
+const { AvlTree } = require('@datastructures-js/binary-search-tree');
+
+const NodeItem = require('./node-item');
 
 module.exports = (logSources, printer) => {
   return new Promise((resolve, reject) => {
-    
 
     const processLogs = async () => {
-      const sortedLogSources = await Promise.all(logSources.map(async (logSource) => {
+      const avlTree = new AvlTree();
+
+      for(let logSource of logSources){
         const log = await logSource.popAsync();
-        return { log, logSource };
-      }));
+        if( log ){
+          let nodeItem = new NodeItem(log, logSource);
+          avlTree.insert(log.date.getTime(), nodeItem);
+        }    
+      }
     
-      sortedLogSources.sort((a, b) => {
-        return a.log.date.getTime() - b.log.date.getTime();
-      });
-      while( sortedLogSources.length > 0 && sortedLogSources[0].log){
-        const oldest = sortedLogSources[0];
-        printer.print(oldest.log);
-        oldest.log = await sortedLogSources[0].logSource.popAsync();
-        sortedLogSources[0].log = oldest.log;
-        if( !oldest.log ){
-          sortedLogSources.shift();//Drained
-        }else{
-          sortLogSources(sortedLogSources);
+      while(avlTree.count() > 0){
+        let minNode = avlTree.min();
+        printer.print(minNode.getValue().log);
+        avlTree.remove(minNode.getKey());
+        const log = await minNode.getValue().logSource.popAsync();
+        if( log ){
+          let newNodeItem = new NodeItem(log, minNode.getValue().logSource);
+          avlTree.insert(log.date.getTime(), newNodeItem);
         }
       }
+    
       printer.done();
       console.log("Async sort complete.");
     };

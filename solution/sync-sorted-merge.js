@@ -2,27 +2,31 @@
 
 // Print all entries, across all of the sources, in chronological order.
 
-const sortLogSources = require("./sort-util").sortLogSources;
+
+const { AvlTree } = require('@datastructures-js/binary-search-tree');
+
+const NodeItem = require('./node-item');
 
 module.exports = (logSources, printer) => {
-  const sortedLogSources = logSources.map(logSource => {
+
+  const avlTree = new AvlTree();
+  
+  logSources.forEach(logSource => {
     const log = logSource.pop();
-    return { log, logSource };
+    if( log ){
+      let nodeItem = new NodeItem(log, logSource);
+      avlTree.insert(log.date.getTime(), nodeItem);
+    }    
   });
 
-  sortedLogSources.sort((a, b) => {
-    return a.log.date.getTime() - b.log.date.getTime();
-  });
-
-  while( sortedLogSources.length > 0 && sortedLogSources[0].log){
-    const oldest = sortedLogSources[0];
-    printer.print(oldest.log);
-    oldest.log = sortedLogSources[0].logSource.pop();
-    sortedLogSources[0].log = oldest.log;
-    if( !oldest.log ){
-      sortedLogSources.shift();//Drained
-    }else{
-      sortLogSources(sortedLogSources);
+  while(avlTree.count() > 0){
+    let minNode = avlTree.min();
+    printer.print(minNode.getValue().log);
+    avlTree.remove(minNode.getKey());
+    const log = minNode.getValue().logSource.pop();
+    if( log ){
+      let newNodeItem = new NodeItem(log, minNode.getValue().logSource);
+      avlTree.insert(log.date.getTime(), newNodeItem);
     }
   }
   printer.done();
